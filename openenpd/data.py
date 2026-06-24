@@ -21,10 +21,10 @@ def load_foo2023_lmc_ph7(csv_path=None):
     if csv_path is None:
         csv_path = Path(__file__).resolve().parents[1] / "data" / "foo2023_lmc_ph7_full.csv"
 
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, skiprows=2, nrows=4)
 
     experimental = df[
         ["pressure_bar", "Jw_LMH", "Jw_um_s", "pH", "R_Li", "R_Mg"]
-    ].dropna()
+    ]
 
     return experimental
