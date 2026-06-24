@@ -1,0 +1,23 @@
+table_name,foo2023_lmc_ph7_dataset,,,,
+,,,,,
+pressure_bar,Jw_LMH,Jw_um_s,pH,R_Li,R_Mg
+6,28.98,8.05,6.94,-0.207,0.521
+8,42.18,11.72,6.71,-0.184,0.6
+10,54.17,15.05,6.83,-0.142,0.599
+12,67.18,18.66,6.92,-0.125,0.653
+,,,,,
+,,,,,
+paper_id,foo_2023_est_lmc_ph7,,,,
+DOI,10.1021/acs.est.2c08584,,,,
+membrane,NF270,,,,
+temperature_K,293.15,,,,
+crossflow_velocity_m_s,0.17,,,,
+Li_feed_mol_L,0.0490,,,,
+Mg_feed_mol_L,0.0843,,,,
+Cl_feed_mol_L,0.2172,,,,
+membrane_thickness_nm,60.06,,,,
+pore_radius_nm,0.416,,,,
+pore_dielectric_constant,39.58,,,,
+membrane_charge_mol_m3,-63.57,,,,
+rejection_definition,"species rejection, R_i = 1 - C_{i,p}/C_{i,f}",,,,
+activity_model,not explicitly named,,,,
