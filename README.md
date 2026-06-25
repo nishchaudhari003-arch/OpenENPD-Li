@@ -1,4 +1,7 @@
 # OpenENPD-Li
+
+![Tests](https://github.com/nishchaudhari003-arch/OpenENPD-Li/actions/workflows/tests.yml/badge.svg)
+
 OpenENPD-Li is an open-source Python toolkit for extended Nernst–Planck–Donnan modeling of membrane-based lithium extraction from multicomponent brines. The project focuses on transparent, reproducible simulation workflows for ion transport through nanofiltration membranes, with an initial emphasis on Li⁺/Mg²⁺ separation from salt-lake-brine-inspired systems.
 
 Project status:
