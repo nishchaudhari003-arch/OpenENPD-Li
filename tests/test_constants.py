@@ -1,4 +1,4 @@
-from openenpd.constants import R_GAS, FARADAY, EPSILON_0
+from openenpd.constants import R_GAS, FARADAY, EPSILON_0, AVOGADRO
 
 
 def test_gas_constant_value():
@@ -11,3 +11,7 @@ def test_faraday_constant_value():
 
 def test_vacuum_permittivity_value():
     assert round(EPSILON_0, 23) == 8.8541878128e-12
+
+
+def test_avogadro_constant_value():
+    assert AVOGADRO == 6.02214076e23
