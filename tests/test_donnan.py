@@ -76,3 +76,60 @@ def test_donnan_partition_factor_matches_manual_expression():
     expected = math.exp(-charge * 96485.33212 * delta_psi_V / (8.314462618 * temperature_K))
 
     assert round(factor, 10) == round(expected, 10)
+
+from openenpd.donnan import membrane_charge_balance, solve_donnan_potential
+
+
+def test_membrane_charge_balance_at_zero_potential():
+    concentrations = {
+        "Li+": 0.0490,
+        "Mg2+": 0.0843,
+        "Cl-": 0.2172,
+    }
+
+    charges = {
+        "Li+": 1,
+        "Mg2+": 2,
+        "Cl-": -1,
+    }
+
+    residual = membrane_charge_balance(
+        delta_psi_V=0.0,
+        concentrations=concentrations,
+        charges=charges,
+        fixed_charge_mol_L=-0.06357,
+        temperature_K=293.15,
+    )
+
+    assert residual < 0.0
+
+
+def test_solve_donnan_potential_foo2023_lmc_ph7():
+    concentrations = {
+        "Li+": 0.0490,
+        "Mg2+": 0.0843,
+        "Cl-": 0.2172,
+    }
+
+    charges = {
+        "Li+": 1,
+        "Mg2+": 2,
+        "Cl-": -1,
+    }
+
+    delta_psi = solve_donnan_potential(
+        concentrations=concentrations,
+        charges=charges,
+        fixed_charge_mol_L=-0.06357,
+        temperature_K=293.15,
+    )
+
+    residual = membrane_charge_balance(
+        delta_psi_V=delta_psi,
+        concentrations=concentrations,
+        charges=charges,
+        fixed_charge_mol_L=-0.06357,
+        temperature_K=293.15,
+    )
+
+    assert abs(residual) < 1e-10
