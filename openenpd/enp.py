@@ -167,3 +167,136 @@ def enp_flux(
     )
 
     return j_diff + j_migration + j_convection
+
+def zero_current_potential_gradient(
+    concentrations_mol_m3,
+    concentration_gradients_mol_m4,
+    diffusivities_m2_s,
+    charges,
+    water_flux_m_s,
+    temperature_K,
+    diffusive_hindrance=None,
+    convective_hindrance=None,
+):
+    """
+    Compute the electric potential gradient required to satisfy
+    the zero-current condition:
+
+        sum(z_i * J_i) = 0
+
+    This gives the local electric field that balances diffusion and
+    convection of charged species.
+
+    Parameters
+    ----------
+    concentrations_mol_m3 : dict
+        Ion concentrations in mol/m^3.
+
+    concentration_gradients_mol_m4 : dict
+        Ion concentration gradients dc_i/dx in mol/m^4.
+
+    diffusivities_m2_s : dict
+        Ion diffusivities in m^2/s.
+
+    charges : dict
+        Ion charge numbers.
+
+    water_flux_m_s : float
+        Water flux in m/s.
+
+    temperature_K : float
+        Temperature in kelvin.
+
+    diffusive_hindrance : dict, optional
+        Ion-specific diffusive hindrance factors. If None, all are 1.
+
+    convective_hindrance : dict, optional
+        Ion-specific convective hindrance factors. If None, all are 1.
+
+    Returns
+    -------
+    float
+        Potential gradient dpsi/dx in V/m.
+    """
+    if diffusive_hindrance is None:
+        diffusive_hindrance = {ion: 1.0 for ion in concentrations_mol_m3}
+
+    if convective_hindrance is None:
+        convective_hindrance = {ion: 1.0 for ion in concentrations_mol_m3}
+
+    numerator = 0.0
+    denominator = 0.0
+
+    for ion, concentration in concentrations_mol_m3.items():
+        charge = charges[ion]
+        diffusivity = diffusivities_m2_s[ion]
+        gradient = concentration_gradients_mol_m4[ion]
+        kd = diffusive_hindrance[ion]
+        kc = convective_hindrance[ion]
+
+        non_migration_flux = (
+            -kd * diffusivity * gradient
+            + kc * concentration * water_flux_m_s
+        )
+
+        numerator += charge * non_migration_flux
+        denominator += kd * diffusivity * charge**2 * concentration
+
+    if denominator == 0.0:
+        raise ValueError("Zero-current potential gradient is undefined because denominator is zero.")
+
+    return (R_GAS * temperature_K / FARADAY) * numerator / denominator
+
+
+def enp_fluxes_zero_current(
+    concentrations_mol_m3,
+    concentration_gradients_mol_m4,
+    diffusivities_m2_s,
+    charges,
+    water_flux_m_s,
+    temperature_K,
+    diffusive_hindrance=None,
+    convective_hindrance=None,
+):
+    """
+    Compute ion fluxes using the ENP equation with the potential gradient
+    chosen to satisfy the zero-current condition.
+
+    Returns
+    -------
+    dict
+        Ion fluxes in mol m^-2 s^-1.
+    """
+    if diffusive_hindrance is None:
+        diffusive_hindrance = {ion: 1.0 for ion in concentrations_mol_m3}
+
+    if convective_hindrance is None:
+        convective_hindrance = {ion: 1.0 for ion in concentrations_mol_m3}
+
+    potential_gradient = zero_current_potential_gradient(
+        concentrations_mol_m3=concentrations_mol_m3,
+        concentration_gradients_mol_m4=concentration_gradients_mol_m4,
+        diffusivities_m2_s=diffusivities_m2_s,
+        charges=charges,
+        water_flux_m_s=water_flux_m_s,
+        temperature_K=temperature_K,
+        diffusive_hindrance=diffusive_hindrance,
+        convective_hindrance=convective_hindrance,
+    )
+
+    fluxes = {}
+
+    for ion, concentration in concentrations_mol_m3.items():
+        fluxes[ion] = enp_flux(
+            diffusivity_m2_s=diffusivities_m2_s[ion],
+            charge=charges[ion],
+            concentration_mol_m3=concentration,
+            concentration_gradient_mol_m4=concentration_gradients_mol_m4[ion],
+            potential_gradient_V_m=potential_gradient,
+            water_flux_m_s=water_flux_m_s,
+            temperature_K=temperature_K,
+            diffusive_hindrance=diffusive_hindrance[ion],
+            convective_hindrance=convective_hindrance[ion],
+        )
+
+    return fluxes
