@@ -5,6 +5,14 @@ from openenpd.enp import (
     enp_flux,
 )
 
+from openenpd.enp import (
+    diffusive_flux,
+    electromigration_flux,
+    convective_flux,
+    enp_flux,
+    zero_current_potential_gradient,
+    enp_fluxes_zero_current,
+)
 
 def test_diffusive_flux_zero_gradient():
     flux = diffusive_flux(
@@ -73,3 +81,110 @@ def test_enp_flux_with_hindrance_factors():
     )
 
     assert total == 8e-4
+
+def test_zero_current_potential_gradient_returns_float():
+    concentrations = {
+        "Li+": 50.0,
+        "Mg2+": 80.0,
+        "Cl-": 210.0,
+    }
+
+    gradients = {
+        "Li+": -1000.0,
+        "Mg2+": -1000.0,
+        "Cl-": -1000.0,
+    }
+
+    diffusivities = {
+        "Li+": 1.03e-9,
+        "Mg2+": 0.706e-9,
+        "Cl-": 2.03e-9,
+    }
+
+    charges = {
+        "Li+": 1,
+        "Mg2+": 2,
+        "Cl-": -1,
+    }
+
+    potential_gradient = zero_current_potential_gradient(
+        concentrations_mol_m3=concentrations,
+        concentration_gradients_mol_m4=gradients,
+        diffusivities_m2_s=diffusivities,
+        charges=charges,
+        water_flux_m_s=1e-5,
+        temperature_K=293.15,
+    )
+
+    assert isinstance(potential_gradient, float)
+
+
+def test_enp_fluxes_zero_current_satisfies_zero_current():
+    concentrations = {
+        "Li+": 50.0,
+        "Mg2+": 80.0,
+        "Cl-": 210.0,
+    }
+
+    gradients = {
+        "Li+": -1000.0,
+        "Mg2+": -1000.0,
+        "Cl-": -1000.0,
+    }
+
+    diffusivities = {
+        "Li+": 1.03e-9,
+        "Mg2+": 0.706e-9,
+        "Cl-": 2.03e-9,
+    }
+
+    charges = {
+        "Li+": 1,
+        "Mg2+": 2,
+        "Cl-": -1,
+    }
+
+    fluxes = enp_fluxes_zero_current(
+        concentrations_mol_m3=concentrations,
+        concentration_gradients_mol_m4=gradients,
+        diffusivities_m2_s=diffusivities,
+        charges=charges,
+        water_flux_m_s=1e-5,
+        temperature_K=293.15,
+    )
+
+    current = sum(charges[ion] * fluxes[ion] for ion in fluxes)
+
+    assert abs(current) < 1e-12
+
+
+def test_zero_current_raises_for_zero_denominator():
+    concentrations = {
+        "Li+": 0.0,
+    }
+
+    gradients = {
+        "Li+": 0.0,
+    }
+
+    diffusivities = {
+        "Li+": 1.03e-9,
+    }
+
+    charges = {
+        "Li+": 1,
+    }
+
+    try:
+        zero_current_potential_gradient(
+            concentrations_mol_m3=concentrations,
+            concentration_gradients_mol_m4=gradients,
+            diffusivities_m2_s=diffusivities,
+            charges=charges,
+            water_flux_m_s=1e-5,
+            temperature_K=293.15,
+        )
+    except ValueError:
+        assert True
+    else:
+        assert False
