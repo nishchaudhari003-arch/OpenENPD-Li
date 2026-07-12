@@ -1,5 +1,10 @@
-from openenpd.units import lmh_to_m_s, m_s_to_lmh, nm_to_m
-
+from openenpd.units import (
+    lmh_to_m_s,
+    m_s_to_lmh,
+    nm_to_m,
+    mol_L_to_mol_m3,
+    mol_m3_to_mol_L,
+)
 
 def test_lmh_to_m_s():
     assert round(lmh_to_m_s(36), 8) == 0.00001
