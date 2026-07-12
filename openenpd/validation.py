@@ -77,3 +77,58 @@ def foo2023_lmc_ph7_comparison_rows():
         )
 
     return rows
+def rejection_rmse(rows, experimental_key, predicted_key):
+    """
+    Compute root-mean-square error for rejection predictions.
+
+    Parameters
+    ----------
+    rows : list of dict
+        Comparison rows containing experimental and predicted values.
+
+    experimental_key : str
+        Key for experimental rejection values.
+
+    predicted_key : str
+        Key for predicted rejection values.
+
+    Returns
+    -------
+    float
+        Root-mean-square error.
+    """
+    squared_errors = []
+
+    for row in rows:
+        error = row[predicted_key] - row[experimental_key]
+        squared_errors.append(error**2)
+
+    mean_squared_error = sum(squared_errors) / len(squared_errors)
+
+    return mean_squared_error**0.5
+
+
+def foo2023_lmc_ph7_validation_metrics():
+    """
+    Compute validation metrics for Foo et al. 2023 LM-C pH ~7 case.
+
+    Returns
+    -------
+    dict
+        RMSE values for Li+ and Mg2+ rejection predictions.
+    """
+    rows = foo2023_lmc_ph7_comparison_rows()
+
+    return {
+        "case_id": "foo2023_lmc_ph7",
+        "R_Li_rmse": rejection_rmse(
+            rows=rows,
+            experimental_key="R_Li_exp",
+            predicted_key="R_Li_pred",
+        ),
+        "R_Mg_rmse": rejection_rmse(
+            rows=rows,
+            experimental_key="R_Mg_exp",
+            predicted_key="R_Mg_pred",
+        ),
+    }
