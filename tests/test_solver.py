@@ -3,6 +3,7 @@ from openenpd.solver import (
     flux_residuals_for_permeate_concentrations,
     solve_permeate_concentrations_for_flux,
     predict_rejection_for_flux,
+    predict_rejections_for_fluxes,
 )
 
 
@@ -158,3 +159,52 @@ def test_predict_rejection_for_flux_uniform_solution():
     assert abs(rejections["Li+"]) < 1e-12
     assert abs(rejections["Mg2+"]) < 1e-12
     assert abs(rejections["Cl-"]) < 1e-12
+
+def test_predict_rejections_for_multiple_fluxes_uniform_solution():
+    concentrations = {
+        "Li+": 50.0,
+        "Mg2+": 80.0,
+        "Cl-": 210.0,
+    }
+
+    model_inputs = {
+        "membrane_concentrations_mol_m3": concentrations,
+        "bulk_concentrations_mol_m3": concentrations,
+        "diffusivities_m2_s": {
+            "Li+": 1.03e-9,
+            "Mg2+": 0.706e-9,
+            "Cl-": 2.03e-9,
+        },
+        "charges": {
+            "Li+": 1,
+            "Mg2+": 2,
+            "Cl-": -1,
+        },
+        "active_layer_thickness_m": 60e-9,
+        "diffusive_hindrance": {
+            "Li+": 1.0,
+            "Mg2+": 1.0,
+            "Cl-": 1.0,
+        },
+        "convective_hindrance": {
+            "Li+": 1.0,
+            "Mg2+": 1.0,
+            "Cl-": 1.0,
+        },
+    }
+
+    predictions = predict_rejections_for_fluxes(
+        model_inputs=model_inputs,
+        water_fluxes_m_s=[8.05e-6, 11.72e-6, 15.05e-6, 18.66e-6],
+        temperature_K=293.15,
+    )
+
+    assert len(predictions) == 4
+
+    for prediction in predictions:
+        assert "water_flux_m_s" in prediction
+        assert "permeate_concentrations_mol_m3" in prediction
+        assert "rejections" in prediction
+        assert abs(prediction["rejections"]["Li+"]) < 1e-12
+        assert abs(prediction["rejections"]["Mg2+"]) < 1e-12
+        assert abs(prediction["rejections"]["Cl-"]) < 1e-12
