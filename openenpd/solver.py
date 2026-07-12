@@ -262,3 +262,40 @@ def predict_rejection_for_flux(
         "permeate_concentrations_mol_m3": permeate_concentrations,
         "rejections": rejections,
     }
+
+def predict_rejections_for_fluxes(
+    model_inputs,
+    water_fluxes_m_s,
+    temperature_K,
+):
+    """
+    Predict species rejection for multiple water fluxes.
+
+    Parameters
+    ----------
+    model_inputs : dict
+        Prepared case transport inputs from prepare_case_transport_inputs().
+
+    water_fluxes_m_s : list of float
+        Water fluxes in m/s.
+
+    temperature_K : float
+        Temperature in kelvin.
+
+    Returns
+    -------
+    list of dict
+        Prediction results for each water flux.
+    """
+    predictions = []
+
+    for water_flux_m_s in water_fluxes_m_s:
+        prediction = predict_rejection_for_flux(
+            model_inputs=model_inputs,
+            water_flux_m_s=water_flux_m_s,
+            temperature_K=temperature_K,
+        )
+
+        predictions.append(prediction)
+
+    return predictions
