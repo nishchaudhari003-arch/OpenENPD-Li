@@ -57,15 +57,22 @@ def foo2023_lmc_ph7_comparison_rows():
     for index, prediction in enumerate(predictions):
         rejections = prediction["rejections"]
 
+        R_Li_exp = experimental["R_Li"][index]
+        R_Mg_exp = experimental["R_Mg"][index]
+        R_Li_pred = rejections["Li+"]
+        R_Mg_pred = rejections["Mg2+"]
+
         rows.append(
             {
                 "pressure_bar": experimental["pressure_bar"][index],
                 "Jw_LMH": experimental["Jw_LMH"][index],
                 "Jw_m_s": prediction["water_flux_m_s"],
-                "R_Li_exp": experimental["R_Li"][index],
-                "R_Mg_exp": experimental["R_Mg"][index],
-                "R_Li_pred": rejections["Li+"],
-                "R_Mg_pred": rejections["Mg2+"],
+                "R_Li_exp": R_Li_exp,
+                "R_Mg_exp": R_Mg_exp,
+                "R_Li_pred": R_Li_pred,
+                "R_Mg_pred": R_Mg_pred,
+                "R_Li_residual": R_Li_pred - R_Li_exp,
+                "R_Mg_residual": R_Mg_pred - R_Mg_exp,
             }
         )
 
