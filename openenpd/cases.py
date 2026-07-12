@@ -42,6 +42,13 @@ def foo2023_lmc_ph7_case():
             "Mg2+": 0.428,
             "Cl-": 0.332,
         },
+
+        "diffusivities_m2_s": {
+            "Li+": 1.03e-9,
+            "Mg2+": 0.706e-9,
+            "Cl-": 2.03e-9,
+        },
+        
         "membrane_parameters": {
             "pore_radius_nm": 0.416,
             "pore_dielectric_constant": 39.58,
