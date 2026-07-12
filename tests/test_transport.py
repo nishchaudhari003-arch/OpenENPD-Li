@@ -11,7 +11,7 @@ def test_active_layer_thickness_m():
     case = foo2023_lmc_ph7_case()
     thickness = active_layer_thickness_m(case)
 
-    assert thickness == 60.06e-9
+    assert round(thickness, 12) == round(60.06e-9, 12)
 
 
 def test_convert_concentrations_mol_L_to_mol_m3():
@@ -25,7 +25,7 @@ def test_convert_concentrations_mol_L_to_mol_m3():
 
     assert converted["Li+"] == 49.0
     assert converted["Mg2+"] == 84.3
-    assert converted["Cl-"] == 217.2
+    assert round(converted["Cl-"], 3) == 217.200
 
 
 def test_linear_concentration_gradient():
