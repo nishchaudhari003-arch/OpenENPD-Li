@@ -18,6 +18,7 @@ def test_foo2023_case_has_required_top_level_keys():
         "experimental_data",
         "rejection_definition",
         "activity_model",
+        "diffusivities_m2_s",
     }
 
     assert required_keys.issubset(case.keys())
@@ -58,3 +59,11 @@ def test_foo2023_case_experimental_rejection_values():
 
     assert experimental["R_Li"][0] == -0.207
     assert experimental["R_Mg"][-1] == 0.653
+    
+def test_foo2023_case_diffusivities():
+    case = foo2023_lmc_ph7_case()
+    diffusivities = case["diffusivities_m2_s"]
+
+    assert diffusivities["Li+"] == 1.03e-9
+    assert diffusivities["Mg2+"] == 0.706e-9
+    assert diffusivities["Cl-"] == 2.03e-9
