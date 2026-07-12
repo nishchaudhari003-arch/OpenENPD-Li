@@ -44,3 +44,15 @@ def nm_to_m(value):
     Convert nanometers to meters.
     """
     return value * 1e-9
+def mol_L_to_mol_m3(value):
+    """
+    Convert concentration from mol/L to mol/m^3.
+    """
+    return value * 1000.0
+
+
+def mol_m3_to_mol_L(value):
+    """
+    Convert concentration from mol/m^3 to mol/L.
+    """
+    return value / 1000.0
