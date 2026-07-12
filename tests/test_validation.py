@@ -68,6 +68,8 @@ def test_foo2023_lmc_ph7_comparison_rows_required_keys():
         "R_Mg_exp",
         "R_Li_pred",
         "R_Mg_pred",
+        "R_Li_residual",
+        "R_Mg_residual",
     }
 
     assert required_keys.issubset(first_row.keys())
@@ -88,3 +90,10 @@ def test_foo2023_lmc_ph7_comparison_rows_predicted_values_are_numeric():
     for row in rows:
         assert isinstance(row["R_Li_pred"], float)
         assert isinstance(row["R_Mg_pred"], float)
+
+def test_foo2023_lmc_ph7_comparison_rows_residuals_are_correct():
+    rows = foo2023_lmc_ph7_comparison_rows()
+
+    for row in rows:
+        assert row["R_Li_residual"] == row["R_Li_pred"] - row["R_Li_exp"]
+        assert row["R_Mg_residual"] == row["R_Mg_pred"] - row["R_Mg_exp"]
