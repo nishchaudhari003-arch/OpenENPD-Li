@@ -36,3 +36,37 @@ def run_foo2023_lmc_ph7_validation():
         "experimental_data": case["experimental_data"],
         "predictions": predictions,
     }
+
+def foo2023_lmc_ph7_comparison_rows():
+    """
+    Create comparison rows for Foo et al. 2023 LM-C pH ~7 validation.
+
+    Returns
+    -------
+    list of dict
+        Rows containing experimental and predicted Li/Mg rejection values
+        at each water flux.
+    """
+    result = run_foo2023_lmc_ph7_validation()
+
+    experimental = result["experimental_data"]
+    predictions = result["predictions"]
+
+    rows = []
+
+    for index, prediction in enumerate(predictions):
+        rejections = prediction["rejections"]
+
+        rows.append(
+            {
+                "pressure_bar": experimental["pressure_bar"][index],
+                "Jw_LMH": experimental["Jw_LMH"][index],
+                "Jw_m_s": prediction["water_flux_m_s"],
+                "R_Li_exp": experimental["R_Li"][index],
+                "R_Mg_exp": experimental["R_Mg"][index],
+                "R_Li_pred": rejections["Li+"],
+                "R_Mg_pred": rejections["Mg2+"],
+            }
+        )
+
+    return rows
