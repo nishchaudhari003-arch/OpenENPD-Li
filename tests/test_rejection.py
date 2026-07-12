@@ -42,7 +42,7 @@ def test_species_rejection_negative():
         permeate_concentration=120.0,
     )
 
-    assert rejection == -0.2
+    assert round(rejection, 3) == -0.200
 
 
 def test_species_rejection_zero_feed_raises():
