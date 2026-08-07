@@ -1,5 +1,7 @@
 """Diagnostic ablations for published OpenENPD-Li validation cases."""
 
+from copy import deepcopy
+
 import pandas as pd
 from scipy.optimize import brentq
 
@@ -8,7 +10,37 @@ from openenpd.dielectric import dielectric_partition_factor
 from openenpd.donnan import donnan_partition_factor
 from openenpd.hindrance import hindrance_factors
 from openenpd.interface import compute_interface_state
+from openenpd.model import prepare_case_transport_inputs
+from openenpd.solver import predict_rejections_for_fluxes
 from openenpd.steric import size_ratio, steric_partition_factor
+from openenpd.validation import rejection_rmse
+
+
+def _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs):
+    """Return Li, Mg, and combined rejection RMSE for prepared model inputs."""
+    predictions = predict_rejections_for_fluxes(
+        model_inputs=model_inputs,
+        water_fluxes_m_s=model_inputs["water_fluxes_m_s"],
+        temperature_K=case["temperature_K"],
+    )
+    experimental = case["experimental_data"]
+    rows = []
+
+    for index, prediction in enumerate(predictions):
+        rows.append(
+            {
+                "R_Li_exp": experimental["R_Li"][index],
+                "R_Li_pred": prediction["rejections"]["Li+"],
+                "R_Mg_exp": experimental["R_Mg"][index],
+                "R_Mg_pred": prediction["rejections"]["Mg2+"],
+            }
+        )
+
+    li_rmse = rejection_rmse(rows, "R_Li_exp", "R_Li_pred")
+    mg_rmse = rejection_rmse(rows, "R_Mg_exp", "R_Mg_pred")
+    total_rmse = ((li_rmse**2 + mg_rmse**2) / 2.0) ** 0.5
+
+    return li_rmse, mg_rmse, total_rmse
 
 
 def foo2023_lmc_ph7_partitioning_diagnostics():
@@ -159,3 +191,96 @@ def foo2023_lmc_ph7_ablation_summary():
             )
 
     return pd.DataFrame(rows).set_index(["variant", "ion"])
+
+
+def foo2023_lmc_ph7_radius_sensitivity(radius_scale_values=None):
+    """Evaluate validation RMSE while uniformly scaling effective ion radii."""
+    if radius_scale_values is None:
+        radius_scale_values = [
+            round(0.40 + 0.05 * index, 2) for index in range(13)
+        ]
+
+    baseline_case = foo2023_lmc_ph7_case()
+    baseline_radii = baseline_case["ion_radii_nm"]
+    pore_radius_nm = baseline_case["membrane_parameters"]["pore_radius_nm"]
+    rows = []
+
+    for radius_scale in radius_scale_values:
+        radius_scale = float(radius_scale)
+        case = deepcopy(baseline_case)
+        case["ion_radii_nm"] = {
+            ion: radius_nm * radius_scale
+            for ion, radius_nm in baseline_radii.items()
+        }
+        model_inputs = prepare_case_transport_inputs(case)
+        li_rmse, mg_rmse, total_rmse = (
+            _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs)
+        )
+
+        rows.append(
+            {
+                "radius_scale": radius_scale,
+                "Li_size_ratio": size_ratio(
+                    case["ion_radii_nm"]["Li+"], pore_radius_nm
+                ),
+                "Mg_size_ratio": size_ratio(
+                    case["ion_radii_nm"]["Mg2+"], pore_radius_nm
+                ),
+                "Cl_size_ratio": size_ratio(
+                    case["ion_radii_nm"]["Cl-"], pore_radius_nm
+                ),
+                "Li_hindrance": model_inputs["diffusive_hindrance"]["Li+"],
+                "Mg_hindrance": model_inputs["diffusive_hindrance"]["Mg2+"],
+                "Cl_hindrance": model_inputs["diffusive_hindrance"]["Cl-"],
+                "R_Li_rmse": li_rmse,
+                "R_Mg_rmse": mg_rmse,
+                "total_rmse": total_rmse,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def foo2023_lmc_ph7_hindrance_floor_sensitivity(floor_values=None):
+    """Evaluate validation RMSE after flooring both hindrance-factor sets."""
+    if floor_values is None:
+        floor_values = [0.0, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2]
+
+    baseline_case = foo2023_lmc_ph7_case()
+    rows = []
+
+    for hindrance_floor in floor_values:
+        hindrance_floor = float(hindrance_floor)
+        case = deepcopy(baseline_case)
+        model_inputs = prepare_case_transport_inputs(case)
+        model_inputs["diffusive_hindrance"] = {
+            ion: max(value, hindrance_floor)
+            for ion, value in model_inputs["diffusive_hindrance"].items()
+        }
+        model_inputs["convective_hindrance"] = {
+            ion: max(value, hindrance_floor)
+            for ion, value in model_inputs["convective_hindrance"].items()
+        }
+        li_rmse, mg_rmse, total_rmse = (
+            _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs)
+        )
+
+        rows.append(
+            {
+                "hindrance_floor": hindrance_floor,
+                "Li_hindrance_effective": model_inputs[
+                    "diffusive_hindrance"
+                ]["Li+"],
+                "Mg_hindrance_effective": model_inputs[
+                    "diffusive_hindrance"
+                ]["Mg2+"],
+                "Cl_hindrance_effective": model_inputs[
+                    "diffusive_hindrance"
+                ]["Cl-"],
+                "R_Li_rmse": li_rmse,
+                "R_Mg_rmse": mg_rmse,
+                "total_rmse": total_rmse,
+            }
+        )
+
+    return pd.DataFrame(rows)
