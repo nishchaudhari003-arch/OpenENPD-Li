@@ -4,7 +4,9 @@ from openenpd.diagnostics import (
     foo2023_lmc_ph7_ablation_summary,
     foo2023_lmc_ph7_hindrance_floor_sensitivity,
     foo2023_lmc_ph7_partitioning_diagnostics,
+    foo2023_lmc_ph7_pore_radius_sensitivity,
     foo2023_lmc_ph7_radius_sensitivity,
+    foo2023_lmc_ph7_steric_floor_sensitivity,
 )
 
 
@@ -119,4 +121,67 @@ def test_positive_hindrance_floor_increases_mg_effective_hindrance():
 
     assert sensitivity.loc[0.05, "Mg_hindrance_effective"] > sensitivity.loc[
         0.0, "Mg_hindrance_effective"
+    ]
+
+
+def test_pore_radius_sensitivity_default_output():
+    sensitivity = foo2023_lmc_ph7_pore_radius_sensitivity()
+    required_columns = {
+        "pore_radius_nm",
+        "Li_size_ratio",
+        "Mg_size_ratio",
+        "Cl_size_ratio",
+        "Li_steric_factor",
+        "Mg_steric_factor",
+        "Cl_steric_factor",
+        "R_Li_rmse",
+        "R_Mg_rmse",
+        "total_rmse",
+    }
+
+    assert isinstance(sensitivity, pd.DataFrame)
+    assert len(sensitivity) > 1
+    assert required_columns.issubset(sensitivity.columns)
+    assert (sensitivity["total_rmse"] >= 0.0).all()
+
+
+def test_larger_pore_decreases_size_ratios_and_allows_mg_entry():
+    sensitivity = foo2023_lmc_ph7_pore_radius_sensitivity(
+        [0.40, 0.45, 0.60]
+    ).set_index("pore_radius_nm")
+
+    assert sensitivity.loc[0.60, "Li_size_ratio"] < sensitivity.loc[
+        0.40, "Li_size_ratio"
+    ]
+    assert sensitivity.loc[0.60, "Mg_size_ratio"] < sensitivity.loc[
+        0.40, "Mg_size_ratio"
+    ]
+    assert sensitivity.loc[0.45, "Mg_steric_factor"] > 0.0
+
+
+def test_steric_floor_sensitivity_default_output():
+    sensitivity = foo2023_lmc_ph7_steric_floor_sensitivity()
+    expected_floors = {0.0, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2}
+    required_columns = {
+        "steric_floor",
+        "Li_steric_effective",
+        "Mg_steric_effective",
+        "Cl_steric_effective",
+        "R_Li_rmse",
+        "R_Mg_rmse",
+        "total_rmse",
+    }
+
+    assert isinstance(sensitivity, pd.DataFrame)
+    assert required_columns.issubset(sensitivity.columns)
+    assert expected_floors == set(sensitivity["steric_floor"])
+
+
+def test_positive_steric_floor_increases_mg_effective_entry():
+    sensitivity = foo2023_lmc_ph7_steric_floor_sensitivity(
+        [0.0, 0.05]
+    ).set_index("steric_floor")
+
+    assert sensitivity.loc[0.05, "Mg_steric_effective"] > sensitivity.loc[
+        0.0, "Mg_steric_effective"
     ]

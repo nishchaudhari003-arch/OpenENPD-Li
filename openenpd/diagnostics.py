@@ -13,6 +13,7 @@ from openenpd.interface import compute_interface_state
 from openenpd.model import prepare_case_transport_inputs
 from openenpd.solver import predict_rejections_for_fluxes
 from openenpd.steric import size_ratio, steric_partition_factor
+from openenpd.transport import convert_concentrations_mol_L_to_mol_m3
 from openenpd.validation import rejection_rmse
 
 
@@ -41,6 +42,82 @@ def _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs):
     total_rmse = ((li_rmse**2 + mg_rmse**2) / 2.0) ** 0.5
 
     return li_rmse, mg_rmse, total_rmse
+
+
+def _foo2023_lmc_ph7_model_inputs_with_steric_floor(case, steric_floor):
+    """Prepare local model inputs with a self-consistent steric-entry floor."""
+    parameters = case["membrane_parameters"]
+    temperature_K = case["temperature_K"]
+    effective_steric_factors = {
+        ion: max(
+            steric_partition_factor(
+                ion_radius_nm=radius_nm,
+                pore_radius_nm=parameters["pore_radius_nm"],
+            ),
+            steric_floor,
+        )
+        for ion, radius_nm in case["ion_radii_nm"].items()
+    }
+    dielectric_factors = {
+        ion: dielectric_partition_factor(
+            charge=case["charges"][ion],
+            ion_radius_nm=radius_nm,
+            pore_dielectric_constant=parameters["pore_dielectric_constant"],
+            temperature_K=temperature_K,
+        )
+        for ion, radius_nm in case["ion_radii_nm"].items()
+    }
+    solved_potential_V = brentq(
+        lambda delta_psi_V: sum(
+            case["charges"][ion]
+            * case["bulk_concentrations_mol_L"][ion]
+            * donnan_partition_factor(
+                charge=case["charges"][ion],
+                delta_psi_V=delta_psi_V,
+                temperature_K=temperature_K,
+            )
+            * effective_steric_factors[ion]
+            * dielectric_factors[ion]
+            for ion in case["charges"]
+        )
+        + parameters["fixed_charge_mol_L"],
+        -0.5,
+        0.5,
+    )
+    total_partition_factors = {
+        ion: donnan_partition_factor(
+            charge=charge,
+            delta_psi_V=solved_potential_V,
+            temperature_K=temperature_K,
+        )
+        * effective_steric_factors[ion]
+        * dielectric_factors[ion]
+        for ion, charge in case["charges"].items()
+    }
+    membrane_concentrations_mol_L = {
+        ion: case["bulk_concentrations_mol_L"][ion]
+        * total_partition_factors[ion]
+        for ion in case["charges"]
+    }
+    charge_residual_mol_L = sum(
+        case["charges"][ion] * membrane_concentrations_mol_L[ion]
+        for ion in case["charges"]
+    ) + parameters["fixed_charge_mol_L"]
+
+    model_inputs = prepare_case_transport_inputs(case)
+    model_inputs["interface_state"] = {
+        "delta_psi_V": solved_potential_V,
+        "partition_factors": total_partition_factors,
+        "membrane_concentrations_mol_L": membrane_concentrations_mol_L,
+        "charge_residual_mol_L": charge_residual_mol_L,
+    }
+    model_inputs["membrane_concentrations_mol_m3"] = (
+        convert_concentrations_mol_L_to_mol_m3(
+            membrane_concentrations_mol_L
+        )
+    )
+
+    return model_inputs, effective_steric_factors
 
 
 def foo2023_lmc_ph7_partitioning_diagnostics():
@@ -277,6 +354,99 @@ def foo2023_lmc_ph7_hindrance_floor_sensitivity(floor_values=None):
                 "Cl_hindrance_effective": model_inputs[
                     "diffusive_hindrance"
                 ]["Cl-"],
+                "R_Li_rmse": li_rmse,
+                "R_Mg_rmse": mg_rmse,
+                "total_rmse": total_rmse,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def foo2023_lmc_ph7_pore_radius_sensitivity(pore_radius_values_nm=None):
+    """Evaluate validation RMSE across copied-case membrane pore radii."""
+    if pore_radius_values_nm is None:
+        pore_radius_values_nm = [
+            round(0.35 + 0.05 * index, 2) for index in range(10)
+        ]
+
+    baseline_case = foo2023_lmc_ph7_case()
+    rows = []
+
+    for pore_radius_nm in pore_radius_values_nm:
+        pore_radius_nm = float(pore_radius_nm)
+        case = deepcopy(baseline_case)
+        case["membrane_parameters"]["pore_radius_nm"] = pore_radius_nm
+        size_ratios = {
+            ion: size_ratio(radius_nm, pore_radius_nm)
+            for ion, radius_nm in case["ion_radii_nm"].items()
+        }
+        steric_factors = {
+            ion: steric_partition_factor(radius_nm, pore_radius_nm)
+            for ion, radius_nm in case["ion_radii_nm"].items()
+        }
+
+        solver_succeeded = True
+        diagnostic_error = ""
+        try:
+            model_inputs = prepare_case_transport_inputs(case)
+            li_rmse, mg_rmse, total_rmse = (
+                _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs)
+            )
+        except (RuntimeError, ValueError) as error:
+            solver_succeeded = False
+            diagnostic_error = str(error)
+            li_rmse = float("inf")
+            mg_rmse = float("inf")
+            total_rmse = float("inf")
+
+        rows.append(
+            {
+                "pore_radius_nm": pore_radius_nm,
+                "Li_size_ratio": size_ratios["Li+"],
+                "Mg_size_ratio": size_ratios["Mg2+"],
+                "Cl_size_ratio": size_ratios["Cl-"],
+                "Li_steric_factor": steric_factors["Li+"],
+                "Mg_steric_factor": steric_factors["Mg2+"],
+                "Cl_steric_factor": steric_factors["Cl-"],
+                "R_Li_rmse": li_rmse,
+                "R_Mg_rmse": mg_rmse,
+                "total_rmse": total_rmse,
+                "solver_succeeded": solver_succeeded,
+                "diagnostic_error": diagnostic_error,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def foo2023_lmc_ph7_steric_floor_sensitivity(floor_values=None):
+    """Evaluate validation RMSE after locally flooring steric entry factors."""
+    if floor_values is None:
+        floor_values = [0.0, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2]
+
+    baseline_case = foo2023_lmc_ph7_case()
+    rows = []
+
+    for steric_floor in floor_values:
+        steric_floor = float(steric_floor)
+        case = deepcopy(baseline_case)
+        model_inputs, effective_steric_factors = (
+            _foo2023_lmc_ph7_model_inputs_with_steric_floor(
+                case,
+                steric_floor,
+            )
+        )
+        li_rmse, mg_rmse, total_rmse = (
+            _foo2023_lmc_ph7_rmse_for_model_inputs(case, model_inputs)
+        )
+
+        rows.append(
+            {
+                "steric_floor": steric_floor,
+                "Li_steric_effective": effective_steric_factors["Li+"],
+                "Mg_steric_effective": effective_steric_factors["Mg2+"],
+                "Cl_steric_effective": effective_steric_factors["Cl-"],
                 "R_Li_rmse": li_rmse,
                 "R_Mg_rmse": mg_rmse,
                 "total_rmse": total_rmse,
