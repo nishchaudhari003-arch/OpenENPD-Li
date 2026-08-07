@@ -1,6 +1,8 @@
+import pandas as pd
 import pytest
 
 from openenpd.validation import (
+    foo2023_lmc_ph7_comparison_dataframe,
     foo2023_lmc_ph7_comparison_rows,
     foo2023_lmc_ph7_validation_metrics,
     rejection_rmse,
@@ -131,3 +133,29 @@ def test_foo2023_lmc_ph7_validation_metrics_rmse_values():
     assert isinstance(metrics["R_Mg_rmse"], float)
     assert metrics["R_Li_rmse"] >= 0.0
     assert metrics["R_Mg_rmse"] >= 0.0
+
+
+def test_foo2023_lmc_ph7_comparison_dataframe_shape_and_columns():
+    dataframe = foo2023_lmc_ph7_comparison_dataframe()
+
+    required_columns = {
+        "pressure_bar",
+        "Jw_LMH",
+        "R_Li_exp",
+        "R_Li_pred",
+        "R_Li_residual",
+        "R_Mg_exp",
+        "R_Mg_pred",
+        "R_Mg_residual",
+    }
+
+    assert isinstance(dataframe, pd.DataFrame)
+    assert len(dataframe) == 4
+    assert required_columns.issubset(dataframe.columns)
+
+
+def test_foo2023_lmc_ph7_comparison_dataframe_core_values_are_complete():
+    dataframe = foo2023_lmc_ph7_comparison_dataframe()
+    core_columns = ["R_Li_exp", "R_Li_pred", "R_Mg_exp", "R_Mg_pred"]
+
+    assert not dataframe[core_columns].isna().any().any()
