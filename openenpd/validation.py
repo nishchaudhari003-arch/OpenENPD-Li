@@ -5,6 +5,8 @@ This module connects published validation cases, model-input preparation,
 and rejection prediction into reproducible validation workflows.
 """
 
+import pandas as pd
+
 from openenpd.cases import foo2023_lmc_ph7_case
 from openenpd.model import prepare_case_transport_inputs
 from openenpd.solver import predict_rejections_for_fluxes
@@ -77,6 +79,15 @@ def foo2023_lmc_ph7_comparison_rows():
         )
 
     return rows
+
+
+def foo2023_lmc_ph7_comparison_dataframe():
+    """Return Foo 2023 LM-C pH ~7 comparison rows as a DataFrame."""
+    rows = foo2023_lmc_ph7_comparison_rows()
+
+    return pd.DataFrame(rows)
+
+
 def rejection_rmse(rows, experimental_key, predicted_key):
     """
     Compute root-mean-square error for rejection predictions.

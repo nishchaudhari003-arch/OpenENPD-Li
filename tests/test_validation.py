@@ -1,6 +1,12 @@
+import pandas as pd
+import pytest
+
 from openenpd.validation import (
-    run_foo2023_lmc_ph7_validation,
+    foo2023_lmc_ph7_comparison_dataframe,
     foo2023_lmc_ph7_comparison_rows,
+    foo2023_lmc_ph7_validation_metrics,
+    rejection_rmse,
+    run_foo2023_lmc_ph7_validation,
 )
 
 
@@ -97,3 +103,59 @@ def test_foo2023_lmc_ph7_comparison_rows_residuals_are_correct():
     for row in rows:
         assert row["R_Li_residual"] == row["R_Li_pred"] - row["R_Li_exp"]
         assert row["R_Mg_residual"] == row["R_Mg_pred"] - row["R_Mg_exp"]
+
+
+def test_rejection_rmse_synthetic_example():
+    rows = [
+        {"experimental": 1.0, "predicted": 2.0},
+        {"experimental": 3.0, "predicted": 5.0},
+    ]
+
+    rmse = rejection_rmse(
+        rows,
+        experimental_key="experimental",
+        predicted_key="predicted",
+    )
+
+    assert rmse == pytest.approx((2.5) ** 0.5)
+
+
+def test_foo2023_lmc_ph7_validation_metrics_required_keys():
+    metrics = foo2023_lmc_ph7_validation_metrics()
+
+    assert {"case_id", "R_Li_rmse", "R_Mg_rmse"}.issubset(metrics)
+
+
+def test_foo2023_lmc_ph7_validation_metrics_rmse_values():
+    metrics = foo2023_lmc_ph7_validation_metrics()
+
+    assert isinstance(metrics["R_Li_rmse"], float)
+    assert isinstance(metrics["R_Mg_rmse"], float)
+    assert metrics["R_Li_rmse"] >= 0.0
+    assert metrics["R_Mg_rmse"] >= 0.0
+
+
+def test_foo2023_lmc_ph7_comparison_dataframe_shape_and_columns():
+    dataframe = foo2023_lmc_ph7_comparison_dataframe()
+
+    required_columns = {
+        "pressure_bar",
+        "Jw_LMH",
+        "R_Li_exp",
+        "R_Li_pred",
+        "R_Li_residual",
+        "R_Mg_exp",
+        "R_Mg_pred",
+        "R_Mg_residual",
+    }
+
+    assert isinstance(dataframe, pd.DataFrame)
+    assert len(dataframe) == 4
+    assert required_columns.issubset(dataframe.columns)
+
+
+def test_foo2023_lmc_ph7_comparison_dataframe_core_values_are_complete():
+    dataframe = foo2023_lmc_ph7_comparison_dataframe()
+    core_columns = ["R_Li_exp", "R_Li_pred", "R_Mg_exp", "R_Mg_pred"]
+
+    assert not dataframe[core_columns].isna().any().any()
