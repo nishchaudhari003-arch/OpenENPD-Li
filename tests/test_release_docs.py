@@ -76,6 +76,13 @@ def test_repository_includes_mit_license():
     assert "Nishant Chaudhari" in license_text
 
 
+def test_license_has_no_stray_trailing_text():
+    license_text = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
+    # The MIT text must end cleanly, with no stray trailing line.
+    assert "Commit directly to main" not in license_text
+    assert license_text.rstrip().endswith("DEALINGS IN THE\nSOFTWARE.")
+
+
 def test_release_checklist_records_mit_license():
     text = (PROJECT_ROOT / "docs" / "release_checklist.md").read_text(
         encoding="utf-8"
