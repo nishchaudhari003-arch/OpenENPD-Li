@@ -68,13 +68,22 @@ def test_validation_summary_states_not_validation_success():
     assert "not validation success" in text
 
 
-def test_release_checklist_notes_license_decision():
+def test_repository_includes_mit_license():
+    license_path = PROJECT_ROOT / "LICENSE"
+    assert license_path.exists()
+    license_text = license_path.read_text(encoding="utf-8")
+    assert "MIT License" in license_text
+    assert "Nishant Chaudhari" in license_text
+
+
+def test_release_checklist_records_mit_license():
     text = (PROJECT_ROOT / "docs" / "release_checklist.md").read_text(
         encoding="utf-8"
     ).lower()
     assert "license" in text
-    # No LICENSE file yet, so the checklist must flag the decision.
-    assert not (PROJECT_ROOT / "LICENSE").exists()
+    # The LICENSE now exists, so the checklist must record the MIT License rather
+    # than flagging a pending decision.
+    assert "mit license" in text
 
 
 def test_package_exposes_version():
