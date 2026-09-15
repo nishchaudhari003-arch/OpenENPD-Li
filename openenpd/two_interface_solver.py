@@ -400,15 +400,36 @@ def _build_state_and_transport(
     convective_hindrance,
     thickness_m,
     temperature_K,
+    variant=None,
 ):
-    """Assemble a state and matching transport inputs for one trial point."""
-    inputs = two_interface_inputs_from_case(
-        case,
-        permeate_concentrations_mol_L=permeate_full_mol_L,
-        feed_side_donnan_V=feed_donnan_V,
-        permeate_side_donnan_V=permeate_donnan_V,
-    )
-    state = assemble_two_interface_state(inputs)
+    """
+    Assemble a state and matching transport inputs for one trial point.
+
+    When ``variant`` is ``None`` this is the exact hard-baseline path (the
+    original behaviour). When a :class:`~openenpd.constitutive_variants.ConstitutiveVariantConfig`
+    is given, the state is assembled with the variant steric/radius treatment;
+    the transport hindrance factors are passed in already computed for the
+    variant by the caller.
+    """
+    if variant is None:
+        inputs = two_interface_inputs_from_case(
+            case,
+            permeate_concentrations_mol_L=permeate_full_mol_L,
+            feed_side_donnan_V=feed_donnan_V,
+            permeate_side_donnan_V=permeate_donnan_V,
+        )
+        state = assemble_two_interface_state(inputs)
+    else:
+        # Lazy import to avoid an import cycle with constitutive_variants.
+        from openenpd.constitutive_variants import build_two_interface_state_variant
+
+        state = build_two_interface_state_variant(
+            case,
+            permeate_concentrations_mol_L=permeate_full_mol_L,
+            feed_side_donnan_V=feed_donnan_V,
+            permeate_side_donnan_V=permeate_donnan_V,
+            config=variant,
+        )
     transport = TwoInterfaceTransportInputs(
         diffusivities_m2_s=diffusivities,
         diffusive_hindrance=diffusive_hindrance,
@@ -512,6 +533,7 @@ def solve_two_interface_for_flux(
     case,
     water_flux_m_s,
     options: Optional[TwoInterfaceSolverOptions] = None,
+    variant=None,
 ) -> TwoInterfaceSolveResult:
     """
     Solve the two-interface state variables for one water flux.
@@ -530,6 +552,11 @@ def solve_two_interface_for_flux(
         Prescribed water flux J_v in m/s.
     options : TwoInterfaceSolverOptions, optional
         Solver options. Defaults to ``TwoInterfaceSolverOptions()``.
+    variant : ConstitutiveVariantConfig, optional
+        Constitutive steric/hindrance variant. When ``None`` (the default) the
+        solver uses the hard-baseline physics exactly as before. When given, the
+        variant steric/hindrance/radius treatment is used to build the state and
+        transport (diagnostic; no parameter fitting).
 
     Returns
     -------
@@ -542,15 +569,27 @@ def solve_two_interface_for_flux(
         options = TwoInterfaceSolverOptions()
 
     feed_concentrations_mol_L = dict(case["bulk_concentrations_mol_L"])
-    ions, hard_cutoff_species = _determine_ions_and_cutoff(case)
+    params = case["membrane_parameters"]
+
+    if variant is None:
+        ions, hard_cutoff_species = _determine_ions_and_cutoff(case)
+        hindrance = hindrance_factors(
+            ion_radii_nm=case["ion_radii_nm"],
+            pore_radius_nm=params["pore_radius_nm"],
+        )
+    else:
+        # Lazy import to avoid an import cycle with constitutive_variants.
+        from openenpd.constitutive_variants import (
+            variant_hindrance_factors,
+            variant_ions_and_cutoff,
+        )
+
+        ions, hard_cutoff_species = variant_ions_and_cutoff(case, variant)
+        hindrance = variant_hindrance_factors(case, variant)
+
     active_ions = tuple(ion for ion in ions if ion not in hard_cutoff_species)
 
     # Precompute the (composition-independent) transport pieces once.
-    params = case["membrane_parameters"]
-    hindrance = hindrance_factors(
-        ion_radii_nm=case["ion_radii_nm"],
-        pore_radius_nm=params["pore_radius_nm"],
-    )
     diffusivities = dict(case["diffusivities_m2_s"])
     diffusive_hindrance = dict(hindrance["diffusive"])
     convective_hindrance = dict(hindrance["convective"])
@@ -571,7 +610,7 @@ def solve_two_interface_for_flux(
         state, transport = _build_state_and_transport(
             case, permeate_full, feed_donnan, perm_donnan, dpsi_m, water_flux_m_s,
             diffusivities, diffusive_hindrance, convective_hindrance,
-            thickness_m, temperature_K,
+            thickness_m, temperature_K, variant=variant,
         )
         raw = compute_two_interface_residuals(state, transport)
         return _assemble_result(
@@ -642,7 +681,7 @@ def solve_two_interface_for_flux(
         state, transport = _build_state_and_transport(
             case, permeate_full, feed_donnan, perm_donnan, dpsi_m, water_flux_m_s,
             diffusivities, diffusive_hindrance, convective_hindrance,
-            thickness_m, temperature_K,
+            thickness_m, temperature_K, variant=variant,
         )
         vector, _ = _scaled_solve_vector(state, transport, active_ions, scales, options)
         return vector
@@ -681,7 +720,7 @@ def solve_two_interface_for_flux(
     state, transport = _build_state_and_transport(
         case, permeate_full, feed_donnan, perm_donnan, dpsi_m, water_flux_m_s,
         diffusivities, diffusive_hindrance, convective_hindrance,
-        thickness_m, temperature_K,
+        thickness_m, temperature_K, variant=variant,
     )
     scaled_vector, scaled_labels = _scaled_solve_vector(
         state, transport, active_ions, scales, options
@@ -720,24 +759,29 @@ def solve_two_interface_for_flux(
 def solve_foo2023_lmc_ph7_flux(
     water_flux_m_s,
     options: Optional[TwoInterfaceSolverOptions] = None,
+    variant=None,
 ) -> TwoInterfaceSolveResult:
     """
     Solve the two-interface state for one Foo 2023 LM-C pH 7 water flux.
 
     Convenience wrapper over :func:`solve_two_interface_for_flux` with the
     ``foo2023_lmc_ph7_case()``. Convergence is not assumed; the result is
-    structured and honest whether or not the solve succeeds.
+    structured and honest whether or not the solve succeeds. ``variant`` is
+    forwarded (``None`` => hard baseline).
     """
     return solve_two_interface_for_flux(
-        foo2023_lmc_ph7_case(), water_flux_m_s, options
+        foo2023_lmc_ph7_case(), water_flux_m_s, options, variant=variant
     )
 
 
 def solve_foo2023_lmc_ph7_all_fluxes(
     options: Optional[TwoInterfaceSolverOptions] = None,
+    variant=None,
 ) -> Tuple[TwoInterfaceSolveResult, ...]:
     """
     Solve the two-interface state for all four Foo 2023 LM-C pH 7 water fluxes.
+
+    ``variant`` is forwarded to every flux (``None`` => hard baseline).
 
     Returns
     -------
@@ -750,6 +794,6 @@ def solve_foo2023_lmc_ph7_all_fluxes(
         value * 1e-6 for value in case["experimental_data"]["Jw_um_s"]
     ]
     return tuple(
-        solve_two_interface_for_flux(case, water_flux_m_s, options)
+        solve_two_interface_for_flux(case, water_flux_m_s, options, variant=variant)
         for water_flux_m_s in water_fluxes_m_s
     )
