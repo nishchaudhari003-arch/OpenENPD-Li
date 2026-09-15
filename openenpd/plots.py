@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 
+from openenpd.cases import foo2023_lmc_ph7_case
 from openenpd.validation import foo2023_lmc_ph7_comparison_dataframe
 from openenpd.two_interface_validation import (
     two_interface_foo2023_lmc_ph7_comparison_dataframe,
@@ -245,6 +246,94 @@ def plot_constitutive_variant_mg_hard_cutoff(metrics, output_path=None):
     axes.set_ylim(-0.5, 1.5)
     axes.set_title("Foo 2023 LM-C pH ~7: Mg2+ hard-cutoff status by variant (diagnostic)")
     axes.grid(alpha=0.3, axis="y")
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
+
+
+def plot_objective_scan_1d(scan_dataframe, parameter_name, output_path=None):
+    """
+    Plot total RMSE vs a single scanned parameter (diagnostic objective scan).
+
+    ``scan_dataframe`` is the output of
+    ``parameter_estimation.objective_scan_1d``.
+    """
+    figure, axes = plt.subplots(figsize=(7, 4.5))
+    axes.plot(scan_dataframe[parameter_name], scan_dataframe["total_rmse"], "o-")
+    axes.set_xlabel(parameter_name)
+    axes.set_ylabel("Total rejection RMSE (diagnostic)")
+    axes.set_title(f"Foo 2023 LM-C pH ~7: objective scan over {parameter_name} (diagnostic)")
+    axes.grid(alpha=0.3)
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
+
+
+def plot_objective_scan_2d(scan_dataframe, name_x, name_y, output_path=None):
+    """
+    Scatter/heatmap of total RMSE over a two-parameter objective scan grid.
+
+    ``scan_dataframe`` is the output of
+    ``parameter_estimation.objective_scan_2d``.
+    """
+    figure, axes = plt.subplots(figsize=(7, 5))
+    scatter = axes.scatter(
+        scan_dataframe[name_x],
+        scan_dataframe[name_y],
+        c=scan_dataframe["total_rmse"],
+        s=120,
+        cmap="viridis",
+    )
+    figure.colorbar(scatter, ax=axes, label="Total rejection RMSE (diagnostic)")
+    axes.set_xlabel(name_x)
+    axes.set_ylabel(name_y)
+    axes.set_title(f"Foo 2023 LM-C pH ~7: objective scan {name_x} vs {name_y} (diagnostic)")
+    axes.grid(alpha=0.3)
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
+
+
+def plot_parameter_fit_rejection(estimation_result, output_path=None):
+    """
+    Plot fitted vs experimental Li/Mg rejection against water flux for a fit.
+
+    ``estimation_result`` is a
+    ``parameter_estimation.EstimationResult`` carrying per-flux predictions.
+    """
+    experimental = foo2023_lmc_ph7_case()["experimental_data"]
+    flux = experimental["Jw_LMH"]
+
+    figure, axes = plt.subplots(figsize=(7.5, 4.5))
+    axes.plot(flux, experimental["R_Li"], "o-", label="Li experiment")
+    axes.plot(
+        flux,
+        list(estimation_result.predicted_R_Li_by_flux),
+        "o:",
+        label="Li fitted (diagnostic)",
+    )
+    axes.plot(flux, experimental["R_Mg"], "s-", label="Mg experiment")
+    axes.plot(
+        flux,
+        list(estimation_result.predicted_R_Mg_by_flux),
+        "s:",
+        label="Mg fitted (diagnostic)",
+    )
+    axes.axhline(0.0, color="black", linewidth=1.0, linestyle="--")
+    axes.set_xlabel("Water flux, $J_w$ (LMH)")
+    axes.set_ylabel("Rejection")
+    axes.set_title("Foo 2023 LM-C pH ~7: fitted vs experimental rejection (diagnostic)")
+    axes.grid(alpha=0.3)
+    axes.legend(fontsize=8, ncol=2)
     figure.tight_layout()
 
     if output_path is not None:
