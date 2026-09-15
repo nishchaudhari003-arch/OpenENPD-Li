@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/nishchaudhari003-arch/OpenENPD-Li/actions/workflows/tests.yml/badge.svg)
 
-OpenENPD-Li is a tested, reproducible Python toolkit for **extended Nernst–Planck–Donnan (ENP-Donnan) modeling and diagnostics** of membrane-based lithium/brine separations. It provides transparent, unit-tested building blocks for ion partitioning and transport through nanofiltration membranes, plus validation and diagnostic workflows built around the Foo et al. 2023 LM-C pH ≈ 7 Li⁺/Mg²⁺/Cl⁻ benchmark. It is a GitHub/PhD/job **portfolio project**, not a manuscript project.
+OpenENPD-Li is a tested, reproducible Python toolkit for **extended Nernst–Planck–Donnan (ENP-Donnan) modeling and diagnostics** of membrane-based lithium/brine separations. It provides transparent, unit-tested building blocks for ion partitioning and transport through nanofiltration membranes, plus validation and diagnostic workflows built around the Foo et al. 2023 LM-C pH ≈ 7 Li⁺/Mg²⁺/Cl⁻ benchmark.
 
 ## What the project currently does
 
