@@ -173,3 +173,81 @@ def plot_two_interface_foo2023_lmc_ph7_solve_success(
         figure.savefig(output_path, dpi=300, bbox_inches="tight")
 
     return figure, axes
+
+
+def _nan_if_none(value):
+    return float("nan") if value is None else value
+
+
+def plot_constitutive_variant_total_rmse(metrics, output_path=None):
+    """
+    Bar chart of total (Li+Mg) rejection RMSE by constitutive variant.
+
+    ``metrics`` is a sequence of dicts from
+    ``constitutive_variants.variant_foo2023_lmc_ph7_metrics``. RMSE is
+    best-effort/diagnostic for variants whose solves did not all converge.
+    """
+    labels = [m["variant_label"] for m in metrics]
+    totals = [_nan_if_none(m["total_rmse"]) for m in metrics]
+
+    figure, axes = plt.subplots(figsize=(8, 4.5))
+    axes.bar(range(len(labels)), totals)
+    axes.set_xticks(range(len(labels)))
+    axes.set_xticklabels(labels, rotation=30, ha="right", fontsize=8)
+    axes.set_ylabel("Total rejection RMSE (diagnostic)")
+    axes.set_title("Foo 2023 LM-C pH ~7: total RMSE by constitutive variant (diagnostic)")
+    axes.grid(alpha=0.3, axis="y")
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
+
+
+def plot_constitutive_variant_li_mg_rmse(metrics, output_path=None):
+    """Grouped bar chart of Li and Mg rejection RMSE by constitutive variant."""
+    labels = [m["variant_label"] for m in metrics]
+    li = [_nan_if_none(m["R_Li_rmse"]) for m in metrics]
+    mg = [_nan_if_none(m["R_Mg_rmse"]) for m in metrics]
+
+    positions = range(len(labels))
+    width = 0.4
+
+    figure, axes = plt.subplots(figsize=(8, 4.5))
+    axes.bar([p - width / 2 for p in positions], li, width=width, label="Li RMSE")
+    axes.bar([p + width / 2 for p in positions], mg, width=width, label="Mg RMSE")
+    axes.set_xticks(list(positions))
+    axes.set_xticklabels(labels, rotation=30, ha="right", fontsize=8)
+    axes.set_ylabel("Rejection RMSE (diagnostic)")
+    axes.set_title("Foo 2023 LM-C pH ~7: Li/Mg RMSE by constitutive variant (diagnostic)")
+    axes.grid(alpha=0.3, axis="y")
+    axes.legend()
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
+
+
+def plot_constitutive_variant_mg_hard_cutoff(metrics, output_path=None):
+    """Bar chart of Mg2+ hard-cutoff status (1 present / 0 relaxed) by variant."""
+    labels = [m["variant_label"] for m in metrics]
+    status = [1 if m["Mg_hard_cutoff_present"] else 0 for m in metrics]
+
+    figure, axes = plt.subplots(figsize=(8, 4.0))
+    axes.bar(range(len(labels)), status)
+    axes.set_xticks(range(len(labels)))
+    axes.set_xticklabels(labels, rotation=30, ha="right", fontsize=8)
+    axes.set_yticks([0, 1])
+    axes.set_yticklabels(["relaxed", "hard cutoff"])
+    axes.set_ylim(-0.5, 1.5)
+    axes.set_title("Foo 2023 LM-C pH ~7: Mg2+ hard-cutoff status by variant (diagnostic)")
+    axes.grid(alpha=0.3, axis="y")
+    figure.tight_layout()
+
+    if output_path is not None:
+        figure.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    return figure, axes
