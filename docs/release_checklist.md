@@ -30,13 +30,11 @@ Generated `outputs/` are gitignored; regenerate them rather than relying on
 committed copies. A small set of baseline artifacts is committed under
 `results/`.
 
-## License decision needed
+## License
 
-There is **no `LICENSE` file** in the repository yet, and no license is
-otherwise declared. The owner should choose and add one before public release
-(for an open-source portfolio project, common permissive choices include MIT or
-BSD-3-Clause; MIT is a common default). No license was added automatically
-because none was previously specified.
+The repository now includes an **MIT License** (see `LICENSE`), a common
+permissive choice for an open-source portfolio project. The license decision is
+therefore resolved; no further action is required here.
 
 ## Suggested GitHub repository description
 
@@ -57,7 +55,7 @@ scientific-computing
 
 ## Before tagging a release
 
-- [ ] Choose and add a `LICENSE` (see above).
+- [x] Add a `LICENSE` (MIT License added).
 - [ ] Confirm the CI badge is green on the default branch.
 - [ ] Optionally add `CITATION.cff` metadata (author, ORCID, repository URL).
 - [ ] Re-read README and docs for any accidental overclaim.
